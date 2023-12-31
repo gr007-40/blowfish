@@ -6,6 +6,7 @@
   - [Build](#build)
   - [Usage](#usage)
   - [Test](#test)
+  - [Modification](#modification)
 <!--toc:end-->
 
 This repository contains my c++ implementation of the blowfish cipher algorithm.
@@ -38,31 +39,26 @@ Usage:
 ## Test
 ```sh
 ❯ make test
-rm -rf ./blow
+rm ./blow
+rm file
+rm key
 g++ src/main.cpp src/blowfish.cpp -o blow
+echo -n 'blow{fish_hsif}wolb' > file
+echo -n 'blowfish' > key
 xxd ./file
 00000000: 626c 6f77 7b66 6973 685f 6873 6966 7d77  blow{fish_hsif}w
 00000010: 6f6c 62                                  olb
 ./blow -m encrypt -k ./key -i ./file
 xxd ./file
-00000000: 2fb6 7d0b 0afb 1144 44b8 e6d5 c2b1 6490  /.}....DD.....d.
-00000010: 8160 9379 8d0a 0a6e                      .`.y...n
+00000000: da33 3454 b10e 45c6 3375 f418 fefd 49ae  .34T..E.3u....I.
+00000010: 889a 9f70 3daa 6e8d                      ...p=.n.
 ./blow -m decrypt -k ./key -i ./file
 xxd ./file
 00000000: 626c 6f77 7b66 6973 685f 6873 6966 7d77  blow{fish_hsif}w
-00000010: 6f6c 62                                  olb
+00000010: 6f6c 6200 0000 0000                      olb.....
 ```
 
 ## Modification
 
 - Added padding with `0x00` at the end of plain text before encryption to make block size multiple of 64 bits.
-- Removes all `0x00` at the end of cipher text after decryption assuming it to be padding.
-
-## Limitation
-
-- If the end of the plain text contains `0x00` it will be removed as padding after decryption even though it should not be removed.
-
-## TODO
-
-- Fix the limitation.
 

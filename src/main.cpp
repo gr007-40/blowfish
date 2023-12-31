@@ -6,6 +6,7 @@
 
 using namespace std;
 
+// prints help message
 void help() {
   cout << "Usage:" << endl
        << "./blow "
@@ -18,6 +19,7 @@ void help() {
   cout << "-i : input filename" << endl;
 }
 
+// The main driver function
 int main(int argc, char *argv[]) {
   if (argc == 2 && strcmp(argv[1], "-h") == 0) {
     help();
@@ -33,6 +35,7 @@ int main(int argc, char *argv[]) {
   string key_file = "";
   string input_file = "";
 
+  // parsing arguments
   for (int i = 1; i < argc; i++) {
     if (argv[i][0] == '-') {
       switch (argv[i][1]) {
@@ -64,6 +67,7 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
+  // reading the key from the key file
   ifstream kf(key_file, ios::in | ios::binary);
   if (!kf) {
     cout << "Cannot open " << key_file << endl;
@@ -72,6 +76,7 @@ int main(int argc, char *argv[]) {
   vector<unsigned char> key(istreambuf_iterator<char>(kf), {});
   kf.close();
 
+  // reading input to be encrypted/decrypted from the input file
   fstream inf(input_file, ios::in | ios::binary);
   if (!inf) {
     cout << "Cannot open " << input_file << endl;
@@ -80,26 +85,31 @@ int main(int argc, char *argv[]) {
   vector<unsigned char> input(istreambuf_iterator<char>(inf), {});
   inf.close();
 
+  // Setting an alias of the input as output.
+  // We will be doing in place encryption/decryption
   vector<unsigned char> &output = input;
 
-  Blowfish bf;
-  bf.init(key.data(), key.size());
+  // Creating the blowfish cipher object with key
+  Blowfish bf(key.data(), key.size());
 
+  // Calculate padding length
+  int padding = (8 - input.size() % 8) % 8;
   if (mode == "encrypt") {
-    if (input.size() % 8 != 0) {
-      int padding = 8 - input.size() % 8;
-      while (padding--) {
+    // Adding additional padding if the input size is not multiple of 8 bytes
+    if (padding > 0) {
+      int t = padding;
+      while (t--) {
         input.push_back(0x00);
       }
     }
-    bf.Encrypt(input.data(), input.size());
-  } else if (mode == "decrypt") {
-    bf.Decrypt(input.data(), input.size());
-    while (output.back() == 0x00) {
-      output.pop_back();
-    }
+    // call to encryption
+    bf.encrypt(input.data(), input.size());
+  } else {
+    // call to decryption
+    bf.decrypt(input.data(), input.size());
   }
 
+  // write encrypted/decrypted data to the [out|in]put file
   fstream ouf(input_file, ios::out | ios::binary);
   if (!ouf) {
     cout << "Cannot open " << input_file << " to write encrypted/decrypted data"
