@@ -6,23 +6,26 @@
 
 using namespace std;
 
-void printhelp() {
+void help() {
   cout << "Usage:" << endl
        << "./blow "
        << "-m <encrypt|decrypt> "
        << "-k <key_file> "
        << "-i <input_file> " << endl;
-  cout << "./blow -h : print this help message" << endl;
+  cout << "-h : print this help message" << endl;
+  cout << "-m : cipher mode [encrypt|decrypt]" << endl;
+  cout << "-k : key filename" << endl;
+  cout << "-i : input filename" << endl;
 }
 
 int main(int argc, char *argv[]) {
   if (argc == 2 && strcmp(argv[1], "-h") == 0) {
-    printhelp();
+    help();
     return 0;
   }
 
   if (argc != 7) {
-    printhelp();
+    help();
     return 1;
   }
 
@@ -39,7 +42,7 @@ int main(int argc, char *argv[]) {
         } else if (strcmp(argv[i + 1], "decrypt") == 0) {
           mode = "decrypt";
         } else {
-          printhelp();
+          help();
           return 1;
         }
         break;
@@ -50,14 +53,14 @@ int main(int argc, char *argv[]) {
         input_file = argv[i + 1];
         break;
       default:
-        printhelp();
+        help();
         return 1;
       }
     }
   }
 
   if (mode == "" || key_file == "" || input_file == "") {
-    printhelp();
+    help();
     return 1;
   }
 
@@ -77,15 +80,24 @@ int main(int argc, char *argv[]) {
   vector<unsigned char> input(istreambuf_iterator<char>(inf), {});
   inf.close();
 
-  vector<unsigned char> output(input.size());
+  vector<unsigned char> &output = input;
 
   Blowfish bf;
   bf.init(key.data(), key.size());
 
   if (mode == "encrypt") {
-    bf.Encrypt(input.data(), output.data(), input.size());
+    if (input.size() % 8 != 0) {
+      int padding = 8 - input.size() % 8;
+      while (padding--) {
+        input.push_back(0x00);
+      }
+    }
+    bf.Encrypt(input.data(), input.size());
   } else if (mode == "decrypt") {
-    bf.Decrypt(input.data(), output.data(), input.size());
+    bf.Decrypt(input.data(), input.size());
+    while (output.back() == 0x00) {
+      output.pop_back();
+    }
   }
 
   fstream ouf(input_file, ios::out | ios::binary);

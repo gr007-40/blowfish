@@ -2,7 +2,6 @@
 #include <algorithm>
 #include <cstring>
 
-namespace {
 #if !defined(__LITTLE_ENDIAN__) and !defined(__BIG_ENDIAN__)
 #define __LITTLE_ENDIAN__
 #endif
@@ -26,12 +25,12 @@ union endian32 {
   } bytes;
 };
 
-const uint32_t initial_pary[18] = {
+const uint32_t init_parray[18] = {
     0x243f6a88, 0x85a308d3, 0x13198a2e, 0x03707344, 0xa4093822, 0x299f31d0,
     0x082efa98, 0xec4e6c89, 0x452821e6, 0x38d01377, 0xbe5466cf, 0x34e90c6c,
     0xc0ac29b7, 0xc97c50dd, 0x3f84d5b5, 0xb5470917, 0x9216d5d9, 0x8979fb1b};
 
-const uint32_t initial_sbox[4][256] = {
+const uint32_t init_sbox[4][256] = {
     {0xd1310ba6, 0x98dfb5ac, 0x2ffd72db, 0xd01adfb7, 0xb8e1afed, 0x6a267e96,
      0xba7c9045, 0xf12c7f99, 0x24a19947, 0xb3916cf7, 0x0801f2e2, 0x858efc16,
      0x636920d8, 0x71574e69, 0xa458fea3, 0xf4933d7e, 0x0d95748f, 0x728eb658,
@@ -216,49 +215,48 @@ int gcd(int a, int b) {
   }
   return a;
 }
-} // anonymous namespace
 
-void Blowfish::init(const unsigned char *key, int key_length) {
-  std::memcpy(pary_, initial_pary, sizeof(initial_pary));
-  std::memcpy(sbox_, initial_sbox, sizeof(initial_sbox));
+void Blowfish::init(const unsigned char *key, int key_len) {
+  std::memcpy(parray_, init_parray, sizeof(init_parray));
+  std::memcpy(sbox_, init_sbox, sizeof(init_sbox));
 
-  static const int pary_length = sizeof(pary_) / sizeof(uint32_t);
-  static const int sbox_length = sizeof(sbox_) / sizeof(uint32_t);
+  static const int pary_len = sizeof(parray_) / sizeof(uint32_t);
+  static const int sbox_len = sizeof(sbox_) / sizeof(uint32_t);
 
   {
-    int buffer_length = key_length / gcd(key_length, sizeof(uint32_t));
-    uint32_t *key_buffer = new uint32_t[buffer_length];
+    int buff_len = key_len / gcd(key_len, sizeof(uint32_t));
+    uint32_t *key_buff = new uint32_t[buff_len];
 
-    for (int i = 0; i < buffer_length; ++i) {
-      endian32 converter;
+    for (int i = 0; i < buff_len; ++i) {
+      endian32 conv;
 
-      converter.bytes.byte0 = key[(i * 4) % key_length];
-      converter.bytes.byte1 = key[(i * 4 + 1) % key_length];
-      converter.bytes.byte2 = key[(i * 4 + 2) % key_length];
-      converter.bytes.byte3 = key[(i * 4 + 3) % key_length];
+      conv.bytes.byte0 = key[(i * 4) % key_len];
+      conv.bytes.byte1 = key[(i * 4 + 1) % key_len];
+      conv.bytes.byte2 = key[(i * 4 + 2) % key_len];
+      conv.bytes.byte3 = key[(i * 4 + 3) % key_len];
 
-      key_buffer[i] = converter.bit_32;
+      key_buff[i] = conv.bit_32;
     }
 
-    for (int i = 0; i < pary_length; ++i) {
-      uint32_t key_uint32 = key_buffer[i % buffer_length];
-      pary_[i] ^= key_uint32;
+    for (int i = 0; i < pary_len; ++i) {
+      uint32_t key_uint32 = key_buff[i % buff_len];
+      parray_[i] ^= key_uint32;
     }
 
-    delete[] key_buffer;
+    delete[] key_buff;
   }
 
   uint32_t left = 0x00000000;
   uint32_t right = 0x00000000;
 
-  for (int i = 0; i < (pary_length / 2); ++i) {
+  for (int i = 0; i < (pary_len / 2); ++i) {
     EncryptBlock(&left, &right);
 
-    pary_[i * 2] = left;
-    pary_[i * 2 + 1] = right;
+    parray_[i * 2] = left;
+    parray_[i * 2 + 1] = right;
   }
 
-  for (int i = 0; i < (sbox_length / 2); ++i) {
+  for (int i = 0; i < (sbox_len / 2); ++i) {
     EncryptBlock(&left, &right);
 
     reinterpret_cast<uint32_t *>(sbox_)[i * 2] = left;
@@ -266,66 +264,57 @@ void Blowfish::init(const unsigned char *key, int key_length) {
   }
 }
 
-void Blowfish::Encrypt(const unsigned char *src, unsigned char *dst,
-                       int length) const {
-  if (dst != src) {
-    memcpy(dst, src, length);
-  }
+void Blowfish::Encrypt(unsigned char *plaintext, int length) const {
 
   for (int i = 0; i < length / sizeof(uint64_t); ++i) {
-    uint32_t *left = &reinterpret_cast<uint32_t *>(dst)[i * 2];
-    uint32_t *right = &reinterpret_cast<uint32_t *>(dst)[i * 2 + 1];
+    uint32_t *left = &reinterpret_cast<uint32_t *>(plaintext)[i * 2];
+    uint32_t *right = &reinterpret_cast<uint32_t *>(plaintext)[i * 2 + 1];
     EncryptBlock(left, right);
   }
 }
 
-void Blowfish::Decrypt(const unsigned char *src, unsigned char *dst,
-                       int length) const {
-  if (dst != src) {
-    memcpy(dst, src, length);
-  }
-
+void Blowfish::Decrypt(unsigned char *ciphertext, int length) const {
   for (int i = 0; i < length / sizeof(uint64_t); ++i) {
-    uint32_t *left = &reinterpret_cast<uint32_t *>(dst)[i * 2];
-    uint32_t *right = &reinterpret_cast<uint32_t *>(dst)[i * 2 + 1];
+    uint32_t *left = &reinterpret_cast<uint32_t *>(ciphertext)[i * 2];
+    uint32_t *right = &reinterpret_cast<uint32_t *>(ciphertext)[i * 2 + 1];
     DecryptBlock(left, right);
   }
 }
 
 void Blowfish::EncryptBlock(uint32_t *left, uint32_t *right) const {
   for (int i = 0; i < 16; ++i) {
-    *left ^= pary_[i];
+    *left ^= parray_[i];
     *right ^= Feistel(*left);
     std::swap(*left, *right);
   }
 
   std::swap(*left, *right);
 
-  *right ^= pary_[16];
-  *left ^= pary_[17];
+  *right ^= parray_[16];
+  *left ^= parray_[17];
 }
 
 void Blowfish::DecryptBlock(uint32_t *left, uint32_t *right) const {
   for (int i = 0; i < 16; ++i) {
-    *left ^= pary_[17 - i];
+    *left ^= parray_[17 - i];
     *right ^= Feistel(*left);
     std::swap(*left, *right);
   }
 
   std::swap(*left, *right);
 
-  *right ^= pary_[1];
-  *left ^= pary_[0];
+  *right ^= parray_[1];
+  *left ^= parray_[0];
 }
 
 uint32_t Blowfish::Feistel(uint32_t value) const {
-  endian32 converter;
-  converter.bit_32 = value;
+  endian32 conv;
+  conv.bit_32 = value;
 
-  uint8_t a = converter.bytes.byte0;
-  uint8_t b = converter.bytes.byte1;
-  uint8_t c = converter.bytes.byte2;
-  uint8_t d = converter.bytes.byte3;
+  uint8_t a = conv.bytes.byte0;
+  uint8_t b = conv.bytes.byte1;
+  uint8_t c = conv.bytes.byte2;
+  uint8_t d = conv.bytes.byte3;
 
   return ((sbox_[0][a] + sbox_[1][b]) ^ sbox_[2][c]) + sbox_[3][d];
 }
